@@ -24,30 +24,35 @@ format_diff() {
 		local_format="$(docker run \
 			--volume "$(pwd)":"$(pwd)" \
 			--workdir "$(pwd)" \
+			--quiet \
 			ghcr.io/jidicula/clang-format:"$CLANG_FORMAT_MAJOR_VERSION" \
 			--dry-run \
 			--Werror \
 			--style=file \
 			--fallback-style="$FALLBACK_STYLE" \
-			"${filepath}")"
+			"${filepath}" 2>&1)"
 	else # Versions below 9 don't have dry run
 		formatted="$(docker run \
 			--volume "$(pwd)":"$(pwd)" \
 			--workdir "$(pwd)" \
+			--quiet \
 			ghcr.io/jidicula/clang-format:"$CLANG_FORMAT_MAJOR_VERSION" \
 			--style=file \
 			--fallback-style="$FALLBACK_STYLE" \
-			"${filepath}")"
+			"${filepath}" 2>&1)"
 		local_format="$(diff -q <(cat "${filepath}") <(echo "${formatted}"))"
 	fi
 
 	local format_status="$?"
 	if [[ ${format_status} -ne 0 ]]; then
-		# Append Markdown-bulleted monospaced filepath of failing file to
-		# summary file.
+		# Append Markdown-bulleted monospaced filepath of failing file
+		# and error information to the summary file.
 		echo "* \`$filepath\`" >>failing-files.txt
+		echo "  \`\`\`" >>failing-files.txt
+		echo "$local_format" | sed -e 's/^/  /g' >>failing-files.txt
+		echo "  \`\`\`" >>failing-files.txt
 
-		echo "Failed on file: $filepath" >&2
+		echo "::warning file=$filepath::clang-format check failed on this file." >&2
 		echo "$local_format" >&2
 		exit_code=1 # flip the global exit code
 		return "${format_status}"

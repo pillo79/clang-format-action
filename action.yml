@@ -13,7 +13,11 @@ inputs:
   check-path:
     description: 'The path to the directory you want to check for correct C/C++/Protobuf formatting. Default is the full repository.'
     required: false
-    default: '.'
+    default: ''
+  check-files-from:
+    description: 'The path to a file containing the list of files you want to check for correct C/C++/Protobuf formatting. If set, this overrides `check-path`. Default is empty.'
+    required: false
+    default: ''
   exclude-regex:
     description: 'A regex to exclude files or directories that should not be checked. Default is empty.'
     required: false
@@ -31,7 +35,7 @@ runs:
   using: "composite"
   steps:
     - run: |
-        "${{ github.action_path }}/check.sh" "${{ inputs.clang-format-version }}" "${{ inputs.check-path }}" "${{ inputs.fallback-style }}" "${{ inputs.exclude-regex }}" "${{ inputs.include-regex }}"
+        "${{ github.action_path }}/check.sh" "${{ inputs.clang-format-version }}" "${{ inputs.check-path }}" "${{ inputs.check-files-from }}" "${{ inputs.fallback-style }}" "${{ inputs.exclude-regex }}" "${{ inputs.include-regex }}"
       shell: bash
     - name: Save PR head commit SHA
       if: failure() && github.event_name == 'pull_request'

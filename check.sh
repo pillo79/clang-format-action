@@ -62,9 +62,10 @@ format_diff() {
 
 CLANG_FORMAT_MAJOR_VERSION="$1"
 CHECK_PATH="$2"
-FALLBACK_STYLE="$3"
-EXCLUDE_REGEX="$4"
-INCLUDE_REGEX="$5"
+CHECK_FILES_FROM="$3"
+FALLBACK_STYLE="$4"
+EXCLUDE_REGEX="$5"
+INCLUDE_REGEX="$6"
 
 # Set the regex to an empty string regex if nothing was provided
 if [[ -z $EXCLUDE_REGEX ]]; then
@@ -84,8 +85,16 @@ fi
 
 cd "$GITHUB_WORKSPACE" || exit 2
 
-if [[ ! -d $CHECK_PATH ]]; then
-	echo "Not a directory in the workspace, fallback to all files." >&2
+if [[ -z "$CHECK_FILES_FROM" ]] && [[ -z "$CHECK_PATH" ]]; then
+	echo "No source input provided. Fallback to all files." >&2
+	CHECK_PATH="."
+elif [[ -f "$CHECK_FILES_FROM" ]]; then
+	echo "Checking files listed in 'check-files-from'." >&2
+elif [[ ! -z "$CHECK_PATH" ]] && [[ -d "$CHECK_PATH" ]]; then
+	echo "Checking directory specified by 'check-path'." >&2
+else
+	echo "::warning::Invalid inputs provided. Fallback to all files." >&2
+	CHECK_FILES_FROM=""
 	CHECK_PATH="."
 fi
 
@@ -98,8 +107,13 @@ docker run \
 	--workdir "$(pwd)" \
 	ghcr.io/jidicula/clang-format:"$CLANG_FORMAT_MAJOR_VERSION" --version
 
-# All files improperly formatted will be printed to the output.
-src_files=$(find "$CHECK_PATH" -name .git -prune -o -regextype posix-egrep -regex "$INCLUDE_REGEX" -print)
+if [[ -f "$CHECK_FILES_FROM" ]]; then
+	# Use the provided list of files to check.
+	src_files=$(grep -E "$INCLUDE_REGEX" "$CHECK_FILES_FROM")
+else
+	# Find all source files in the provided path, excluding .git directories.
+	src_files=$(find "$CHECK_PATH" -name .git -prune -o -regextype posix-egrep -regex "$INCLUDE_REGEX" -print)
+fi
 
 # check formatting in each source file
 IFS=$'\n' # Loop below should separate on new lines, not spaces.
